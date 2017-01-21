@@ -16,12 +16,12 @@ from apiclient.http import MediaFileUpload
 import glob
 
 #'''set by user'''
-#Script for downloading, overlaying and uploading to Fusion Table(FT) and Drive, fires data (Firms) for Indonesia peatlands, FT have to be open for access and editing for e-mail from .json key file
+#Script for downloading, overlaying and uploading to Fusion Table(FT) and Drive, fires data (Firms) for Indonesia peatlands (GFW data layer), FT have to be open for access and editing for e-mail from .json key file
 #see http://tech.thejoestory.com/2015/05/gspread-python-module-and-more-push-ups.html and http://tech.thejoestory.com/2015/12/fusion-table-api-insert-data-python.html 
 #set sources / names and outputs!!TODO normal parser for arguments
-#FT id code
+#FusionTable id 
 tableId = "1lCVZWyWQIfMfVWAEpg7h9KnTyHmujoWEoVN_kaFo"
-#drive folder id code
+#drive folder id 
 folder_id = '0B2diDVTPYguoU09XTVhuR1I2MzA'
 #fire data interval
 FIRE_LASTS ='24h'
@@ -29,11 +29,11 @@ FIRE_LASTS ='24h'
 URL_MOD_FIRE_SHAPES = 'https://firms.modaps.eosdis.nasa.gov/active_fire/c6/text/MODIS_C6_SouthEast_Asia_%s.csv' % FIRE_LASTS
 #url to VIIRS data
 URL_VII_FIRE_SHAPES = 'https://firms.modaps.eosdis.nasa.gov/active_fire/viirs/text/VNP14IMGTDL_NRT_SouthEast_Asia_%s.csv' % FIRE_LASTS
-#dirs for temporal and result files
-source_dir='d:/Thematic/Peatfires/Indonesia/Firms_source'
-source_sel='d:/Thematic/Peatfires/Indonesia/Firms_source/Temp'
-result_dir='d:/Thematic/Peatfires/Indonesia/Firms_source/Result'
-upload_dir='d:/Thematic/Peatfires/Indonesia/Firms_source/ToUpload'
+#dirs for temporal,result and ready to upload files
+source_dir='<path_source_dir>'
+source_sel='<path_source_dir>/Temp'
+result_dir='<path_source_dir>/Result'
+upload_dir='<path_source_dir>/ToUpload'
 #filenames for polygons (peatlands from GFW Indonesia_Peat_Lands.shp)
 filename_peatlands = 'mask'
 #''set by user''
@@ -59,12 +59,12 @@ def silent_remove(filename):
 
 #authentification to FT (needed .json key saved on disk)
 def auth2FT():
-   json_key = json.load(open('d:\\Thematic\\Peatfires\\Python\\import_export_csv2ft\\iggkey.json'))
+   json_key = json.load(open('<path_to_jsonkey_file>'))
    scope = ['https://www.googleapis.com/auth/fusiontables']
    credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
    http = httplib2.Http()
    http = credentials.authorize(http)
-   #TODOcheck what is build
+   #build service
    service = build("fusiontables", "v1", http=http)
    return(service)
 
@@ -75,7 +75,7 @@ def auth2drive():
    credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
    http = httplib2.Http()
    http = credentials.authorize(http)
-   #TODOcheck what is build
+   #build service
    service = build("drive", "v3", http=http)
    return(service)
 
