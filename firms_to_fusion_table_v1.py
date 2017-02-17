@@ -8,7 +8,9 @@ import sys
 import requests
 import httplib2
 import csv
+#google-api-client
 from apiclient.discovery import build
+#oauth2client=1.5.2 also need PyOpenSSL installed
 from oauth2client.client import SignedJwtAssertionCredentials
 import pandas as pd
 import time,os
@@ -16,12 +18,12 @@ from apiclient.http import MediaFileUpload
 import glob
 
 #'''set by user'''
-#Script for downloading, overlaying and uploading to Fusion Table(FT) and Drive, fires data (Firms) for Indonesia peatlands (GFW data layer), FT have to be open for access and editing for e-mail from .json key file
+#Script for downloading, overlaying and uploading to Fusion Table(FT) and Drive, fires data (Firms) for Indonesia peatlands, FT have to be open for access and editing for e-mail from .json key file
 #see http://tech.thejoestory.com/2015/05/gspread-python-module-and-more-push-ups.html and http://tech.thejoestory.com/2015/12/fusion-table-api-insert-data-python.html 
 #set sources / names and outputs!!TODO normal parser for arguments
-#FusionTable id 
+#FT id code
 tableId = "1lCVZWyWQIfMfVWAEpg7h9KnTyHmujoWEoVN_kaFo"
-#drive folder id 
+#drive folder id code
 folder_id = '0B2diDVTPYguoU09XTVhuR1I2MzA'
 #fire data interval
 FIRE_LASTS ='24h'
@@ -29,11 +31,11 @@ FIRE_LASTS ='24h'
 URL_MOD_FIRE_SHAPES = 'https://firms.modaps.eosdis.nasa.gov/active_fire/c6/text/MODIS_C6_SouthEast_Asia_%s.csv' % FIRE_LASTS
 #url to VIIRS data
 URL_VII_FIRE_SHAPES = 'https://firms.modaps.eosdis.nasa.gov/active_fire/viirs/text/VNP14IMGTDL_NRT_SouthEast_Asia_%s.csv' % FIRE_LASTS
-#dirs for temporal,result and ready to upload files
-source_dir='<path_source_dir>'
-source_sel='<path_source_dir>/Temp'
-result_dir='<path_source_dir>/Result'
-upload_dir='<path_source_dir>/ToUpload'
+#dirs for temporal and result files
+source_dir='d:/Thematic/Peatfires/Indonesia/Firms_source'
+source_sel='d:/Thematic/Peatfires/Indonesia/Firms_source/Temp'
+result_dir='d:/Thematic/Peatfires/Indonesia/Firms_source/Result'
+upload_dir='d:/Thematic/Peatfires/Indonesia/Firms_source/ToUpload'
 #filenames for polygons (peatlands from GFW Indonesia_Peat_Lands.shp)
 filename_peatlands = 'mask'
 #''set by user''
@@ -59,12 +61,12 @@ def silent_remove(filename):
 
 #authentification to FT (needed .json key saved on disk)
 def auth2FT():
-   json_key = json.load(open('<path_to_jsonkey_file>'))
+   json_key = json.load(open('d:\\Thematic\\Peatfires\\Python\\import_export_csv2ft\\iggkey.json'))
    scope = ['https://www.googleapis.com/auth/fusiontables']
    credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
    http = httplib2.Http()
    http = credentials.authorize(http)
-   #build service
+   #TODOcheck what is build
    service = build("fusiontables", "v1", http=http)
    return(service)
 
@@ -75,7 +77,7 @@ def auth2drive():
    credentials = SignedJwtAssertionCredentials(json_key['client_email'], json_key['private_key'], scope)
    http = httplib2.Http()
    http = credentials.authorize(http)
-   #build service
+   #TODOcheck what is build
    service = build("drive", "v3", http=http)
    return(service)
 
@@ -102,31 +104,34 @@ def read_csv_from_site(url):
 
 #intersect with polygons layer using ogr2ogr
 def sp_join(filename):
-   #convert to shp
-   #create vrt and convert to shp
-   f = open(outpath_selvrt, 'w')
-   f.write("<OGRVRTDataSource>\n")
-   f.write("  <OGRVRTLayer name=\"%s_tmp\">\n" % (filename))
-   f.write("    <SrcDataSource relativeToVRT=\"1\">%s</SrcDataSource>\n" % (source_dir))
-   f.write("    <SrcLayer>%s</SrcLayer>\n" % (filename))
-   f.write("    <GeometryType>wkbPoint</GeometryType>\n")
-   f.write("    <LayerSRS>WGS84</LayerSRS>\n")
-   f.write("    <GeometryField encoding=\"PointFromColumns\" x=\"longitude\" y=\"latitude\"/>\n")
-   f.write("  </OGRVRTLayer>\n")
-   f.write("</OGRVRTDataSource>\n")
-   f.close()
-   #convert
-   command="ogr2ogr -overwrite -skipfailures -f \"ESRI Shapefile\" %s %s && ogr2ogr -f \"ESRI Shapefile\" %s %s"  % (source_dir,sourcepath,source_dir,outpath_selvrt)
-   print(command)
-   os.system(command)   
-   #intersect   
-   command = "ogr2ogr -overwrite -sql \"SELECT ST_Intersection(A.geometry, B.geometry) AS geometry, A.*, B.* FROM %s_tmp A, %s B WHERE ST_Intersects(A.geometry, B.geometry)\" -dialect SQLITE %s %s -nln %s_tmp1" % (filename,filename_peatlands,source_dir,source_dir,filename)
-   print(command)
-   os.system(command)
-   #conver back to csv
-   command = "ogr2ogr -overwrite -skipfailures -f CSV %s %s" % (outpath_selcsv,os.path.join(source_dir, '%s_tmp1.shp'%(filename))) 
-   print(command)
-   os.system(command)
+   try:
+     #convert to shp
+     #create vrt and convert to shp
+     f = open(outpath_selvrt, 'w')
+     f.write("<OGRVRTDataSource>\n")
+     f.write("  <OGRVRTLayer name=\"%s_tmp\">\n" % (filename))
+     f.write("    <SrcDataSource relativeToVRT=\"1\">%s</SrcDataSource>\n" % (source_dir))
+     f.write("    <SrcLayer>%s</SrcLayer>\n" % (filename))
+     f.write("    <GeometryType>wkbPoint</GeometryType>\n")
+     f.write("    <LayerSRS>WGS84</LayerSRS>\n")
+     f.write("    <GeometryField encoding=\"PointFromColumns\" x=\"longitude\" y=\"latitude\"/>\n")
+     f.write("  </OGRVRTLayer>\n")
+     f.write("</OGRVRTDataSource>\n")
+     f.close()
+     #convert
+     command="ogr2ogr -overwrite -skipfailures -f \"ESRI Shapefile\" %s %s && ogr2ogr -f \"ESRI Shapefile\" %s %s"  % (source_dir,sourcepath,source_dir,outpath_selvrt)
+     print(command)
+     os.system(command)   
+     #intersect   
+     command = "ogr2ogr -overwrite -sql \"SELECT ST_Intersection(A.geometry, B.geometry) AS geometry, A.*, B.* FROM %s_tmp A, %s B WHERE ST_Intersects(A.geometry, B.geometry)\" -dialect SQLITE %s %s -nln %s_tmp1" % (filename,filename_peatlands,source_dir,source_dir,filename)
+     print(command)
+     os.system(command)
+     #conver back to csv
+     command = "ogr2ogr -overwrite -skipfailures -f CSV %s %s" % (outpath_selcsv,os.path.join(source_dir, '%s_tmp1.shp'%(filename))) 
+     print(command)
+     os.system(command)
+   except:
+       print('An error occured..')
 
 #find last rowId from FT
 def find_last_id_in_FT():
@@ -140,27 +145,27 @@ def find_last_id_in_FT():
 def create_csv_to_upload(filename):
    if os.path.isfile(outpath_selcsv):
       csvday = pd.read_csv(outpath_selcsv)
+      tmppath = os.path.join(result_dir, 'tmp.csv')
+      tmpcsv = []
+      lastid = find_last_id_in_FT()
+      for row in csvday.iterrows():
+            id = row[0]+lastid
+            lat = row[1]['latitude']
+            lon = row[1]['longitude']
+            acq_date = row[1]['acq_date']
+            acq_time = row[1]['acq_time']
+            conf = row[1]['confidence']
+            type = filename.split('_')[0]
+            reg = row[1]['objectid_1']
+            note = ' '
+            whouploaded = 'GProbot'
+            who = ' '
+            link = " "
+            status_no = 1
+            line = str(id) + "," + str(lat) + "," + str(lon) + "," + acq_date + "," + str(conf) + "," + type + "," + whouploaded + "," + str(reg) + "," + who + "," + str(status_no) + "," + note + "," + link
+            tmpcsv.append(line)
    else:
-      print("File doesn't exsist yet")
-   tmppath = os.path.join(result_dir, 'tmp.csv')
-   tmpcsv = []
-   lastid = find_last_id_in_FT()
-   for row in csvday.iterrows():
-         id = row[0]+lastid
-         lat = row[1]['latitude']
-         lon = row[1]['longitude']
-         acq_date = row[1]['acq_date']
-         acq_time = row[1]['acq_time']
-         conf = row[1]['confidence']
-         type = filename.split('_')[0]
-         reg = row[1]['objectid_1']
-         note = ' '
-         whouploaded = 'GProbot'
-         who = ' '
-         link = " "
-         status_no = 1
-         line = str(id) + "," + str(lat) + "," + str(lon) + "," + acq_date + "," + str(conf) + "," + type + "," + whouploaded + "," + str(reg) + "," + who + "," + str(status_no) + "," + note + "," + link
-         tmpcsv.append(line)
+      print("File doesn't exist")
    try:
      tmpf = open(tmppath,'wb')
      for line in tmpcsv:
@@ -196,6 +201,7 @@ def convert2kml(filename):
   except:
     print('An error occurs during the convertation %s' % (outpath_rescsv))
 
+
 #upload kml to drive
 def upload_to_drive(outpath_reskml):
    try:
@@ -214,6 +220,7 @@ def upload_to_drive(outpath_reskml):
      print('An error occurs during the uploading file %s' % (outpath_reskml))
 
 
+
 #upload csv to FT
 def upload_to_FT(outpath_upload):
    try:
@@ -227,6 +234,7 @@ def upload_to_FT(outpath_upload):
    except:
         #time.sleep(60)
      print('An error occurs during the uploading file %s' % (os.path.basename(outpath_upload)))
+
 
 
 if __name__ == "__main__":
@@ -256,7 +264,10 @@ if __name__ == "__main__":
      upload_to_FT(outpath_upload)
      for tmpfile in glob.glob(os.path.join(source_dir, '*_tmp*')):
          os.remove(tmpfile)
-     os.remove(outpath_selcsv)     
+     if os.path.isfile(outpath_selcsv):
+       os.remove(outpath_selcsv)
+     else:
+        continue      	 
    #sleep for 24h+1sec
    time.sleep(86401)
 
