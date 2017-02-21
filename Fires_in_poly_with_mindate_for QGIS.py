@@ -142,13 +142,9 @@ except:
 for command in commandlist:
     os.system(command)
     logf.write(command+'\n')
-#try:
-    #remove_tmp()
-#except:
-    #logf.close()
+try:
+    remove_tmp()
+except:
+    logf.write('Smthg wrong')
+    logf.close()
 logf.close()
-#res = processing.getObjectFromUri(out2)
-#QgsMapLayerRegistry.instance().addMapLayer(res)
-
-#import timeit
-#print "With Index: %s seconds " % timeit.timeit(withindex,number=1)
